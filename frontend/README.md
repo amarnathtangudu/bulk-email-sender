@@ -1,59 +1,45 @@
-# Frontend
+# Bulk Email Sender - Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.5.
+This is the Angular frontend for the Bulk Email Sender. It allows users to:
+- Add and manage recipients
+- Use placeholders (like `{{name}}`) in subjects and email bodies
+- Preview personalized emails dynamically
+- Request AI-generated outreach templates using Google Gemini
+- Send bulk emails seamlessly via SMTP
 
-## Development server
+## Requirements
 
-To start a local development server, run:
+Ensure you have **Node.js** (v18 or newer recommended) and **npm** installed on your system.
 
+## Installation
+
+1. Navigate to the `frontend` directory in your terminal:
+   ```bash
+   cd frontend
+   ```
+
+2. Install all necessary dependencies by running:
+   ```bash
+   npm install
+   ```
+
+## Running the Application
+
+To start the local development server, run:
 ```bash
+npm start
+# or 
 ng serve
 ```
 
 Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
 
-## Code scaffolding
+## Project Structure
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- `src/app/app.component.ts`: The main user interface component containing the template and layout structure.
+- `src/app/services/api.service.ts`: Extracted service layer to handle all HTTP communication with the FastAPI backend.
+- `src/app/models/`: Any custom typings required by the Angular application.
 
-```bash
-ng generate component component-name
-```
+## Tooling
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.5. You can use standard `ng` commands to scaffold or build.

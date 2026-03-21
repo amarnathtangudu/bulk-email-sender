@@ -1,15 +1,10 @@
 import { Component, OnInit, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule, HttpClient } from '@angular/common/http';
+import { HttpClientModule } from '@angular/common/http';
 import { LucideAngularModule, Send, User, MapPin, Calendar, FileText, CheckCircle, AlertCircle, Download, Upload, Trash2, Settings, X, Copy, ClipboardCheck, RotateCcw, Sparkles, WandSparkles, RefreshCw } from 'lucide-angular';
+import { ApiService, Recipient } from './services/api.service';
 
-interface Recipient {
-  id: string;
-  email: string;
-  status: 'idle' | 'sending' | 'success' | 'failed';
-  variables: { [key: string]: string };
-}
 
 @Component({
   selector: 'app-root',
@@ -110,7 +105,7 @@ Contact: +91 8895035680`
 
   notifications: { type: 'success' | 'error', message: string, id: number }[] = [];
 
-  constructor(private http: HttpClient, private ngZone: NgZone) { }
+  constructor(private apiService: ApiService, private ngZone: NgZone) { }
 
   ngOnInit() {
     this.detectPlaceholders();
@@ -214,10 +209,7 @@ Contact: +91 8895035680`
   }
 
   downloadCSVTemplate() {
-    this.http.post('http://localhost:8000/generate-template',
-      { placeholders: this.placeholders },
-      { responseType: 'blob' }
-    ).subscribe((blob: Blob) => {
+    this.apiService.downloadCSVTemplate(this.placeholders).subscribe((blob: Blob) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       document.body.appendChild(a);
@@ -331,7 +323,7 @@ Contact: +91 8895035680`
         }))
       };
 
-      const response: any = await this.http.post('http://localhost:8000/send-bulk', payload).toPromise();
+      const response: any = await this.apiService.sendBulkEmails(payload).toPromise();
 
       let successCount = 0;
       let failedCount = 0;
@@ -419,7 +411,7 @@ Contact: +91 8895035680`
         payload.existing_body = this.template.body;
       }
 
-      const response: any = await this.http.post('http://localhost:8000/generate-email', payload).toPromise();
+      const response: any = await this.apiService.generateEmail(payload).toPromise();
 
       if (response && response.subject && response.body) {
         this.generatedSubject = response.subject;
