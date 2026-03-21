@@ -19,10 +19,11 @@ You can find the dependencies in `requirements.txt`
    ```bash
    pip install -r requirements.txt
    ```
-4. Set up environment variables by copying or updating `.env`:
+4. Set up environment variables by copying the template file:
    ```bash
-   # Add your Gemini API Key if you want to override the default encoded one
-   GEMINI_API_KEY=your_key_here
+   cp .env.example .env
+   # Then open .env and add your Gemini API Key which is required for AI generation:
+   # GEMINI_API_KEY=your_key_here
    ```
 
 ## Running the Application
