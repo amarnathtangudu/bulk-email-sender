@@ -1,0 +1,281 @@
+<!-- Notifications Overlay — OUTSIDE the main layout so overflow:hidden doesn't clip it -->
+<div
+  style="position:fixed;top:1.5rem;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:0.5rem;pointer-events:none;">
+  <div *ngFor="let n of notifications"
+    style="pointer-events:auto;display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1rem;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.5);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);animation:notifSlide 0.35s cubic-bezier(.16,1,.3,1) forwards;"
+    [style.background]="n.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(251, 113, 133, 0.15)'"
+    [style.border]="n.type === 'success' ? '1px solid rgba(52, 211, 153, 0.4)' : '1px solid rgba(251, 113, 133, 0.4)'">
+    <lucide-icon [name]="n.type === 'success' ? CheckCircle : AlertCircle"
+      [style.color]="n.type === 'success' ? '#34d399' : '#fb7185'"
+      style="width:16px;height:16px;flex-shrink:0;"></lucide-icon>
+    <span style="font-size:13px;font-weight:600;color:#f1f5f9;white-space:nowrap;">{{ n.message }}</span>
+    <button (click)="removeNotification(n.id)"
+      style="background:none;border:none;cursor:pointer;color:#94a3b8;padding:0;margin-left:0.25rem;display:flex;align-items:center;transition:color 0.2s;"
+      onmouseover="this.style.color='#f8fafc'" onmouseout="this.style.color='#94a3b8'">
+      <lucide-icon [name]="X" style="width:14px;height:14px;"></lucide-icon>
+    </button>
+  </div>
+</div>
+
+<div class="h-screen flex flex-col p-6 max-w-full overflow-hidden">
+  <header class="flex justify-between items-center mb-6 animate-fade-in flex-shrink-0">
+    <div class="flex flex-col">
+      <h1
+        class="text-3xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent tracking-tight">
+        Globe Plates</h1>
+      <p class="text-slate-400 text-xs font-semibold uppercase tracking-widest mt-0.5 opacity-70">Outreach OS</p>
+    </div>
+    <div class="flex gap-3">
+      <button (click)="downloadCSVTemplate()" class="btn-secondary">
+        <lucide-icon [name]="Download" class="w-4 h-4"></lucide-icon>
+        Export Template
+      </button>
+      <label class="btn-secondary cursor-pointer">
+        <lucide-icon [name]="Upload" class="w-4 h-4"></lucide-icon>
+        Import CSV
+        <input type="file" (change)="uploadCSV($event)" accept=".csv" class="hidden">
+      </label>
+      <button (click)="showSettings = !showSettings" class="btn-secondary" [class.bg-slate-700]="showSettings">
+        <lucide-icon [name]="Settings" class="w-4 h-4"></lucide-icon>
+        Settings
+      </button>
+      <button (click)="sendBulk()" [disabled]="isSending" class="btn-primary">
+        <lucide-icon [name]="Send" class="w-4 h-4"></lucide-icon>
+        {{ isSending ? 'Sending...' : 'Send Bulk' }}
+      </button>
+    </div>
+  </header>
+
+  <!-- Settings Panel -->
+  <div *ngIf="showSettings" class="glass p-6 mb-6 animate-slide-down border-indigo-500/30">
+    <div class="flex items-center gap-2 mb-4">
+      <lucide-icon [name]="Settings" class="text-indigo-400 w-5 h-5"></lucide-icon>
+      <h3 class="text-sm font-semibold uppercase tracking-widest">Gmail SMTP Settings</h3>
+    </div>
+    <div class="grid grid-cols-2 gap-6">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[10px] text-slate-500 font-bold uppercase">Gmail Address</label>
+        <input [(ngModel)]="smtpUser" type="email" placeholder="your-email@gmail.com" class="input-field">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-[10px] text-slate-500 font-bold uppercase flex justify-between">
+          App Password
+          <a href="https://myaccount.google.com/apppasswords" target="_blank"
+            class="text-indigo-400 hover:underline">How to get this?</a>
+        </label>
+        <input [(ngModel)]="smtpPassword" type="password" placeholder="xxxx xxxx xxxx xxxx" class="input-field">
+      </div>
+    </div>
+    <p class="text-[10px] text-slate-500 mt-3 italic">
+      Note: Use a Google App Password, not your regular password. 2FA must be enabled on your Gmail account.
+    </p>
+  </div>
+
+  <div class="flex-1 min-h-0 flex gap-8">
+    <!-- Left Column: Variable Inputs & Template -->
+    <div class="flex-1 flex flex-col gap-6 min-h-0 basis-0">
+
+      <!-- Dynamic Recipients Section -->
+      <section class="glass p-5 flex flex-col min-h-0 max-h-45pct">
+        <div class="flex justify-between items-center mb-4 flex-shrink-0">
+          <h2 class="text-sm font-semibold uppercase tracking-widest flex items-center gap-2">
+            <lucide-icon [name]="User" class="text-indigo-400 w-4 h-4"></lucide-icon>
+            Recipients ({{recipients.length}})
+          </h2>
+          <div class="flex gap-2">
+            <button *ngIf="recipients.length > 0" (click)="clearAllRecipients()"
+              class="btn-remove px-3 py-1.5 text-[10px] flex items-center gap-1.5">
+              <lucide-icon [name]="Trash2" class="w-3 h-3"></lucide-icon>
+              Clear All
+            </button>
+            <button (click)="addRecipient()" class="btn-add">
+              + New Recipient
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-y-auto flex-1 space-y-3 pr-2 custom-scrollbar">
+          <div *ngFor="let recipient of recipients; let i = index" [class.active-card]="selectedRecipientIndex === i"
+            class="glass p-4 transition-all cursor-pointer hover:bg-slate-800/30 relative border-l-4 border-l-transparent"
+            [class.border-l-indigo-500]="selectedRecipientIndex === i"
+            (click)="selectedRecipientIndex = i; updatePreview()">
+
+            <div class="grid grid-cols-1 gap-3">
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] text-slate-500 font-bold uppercase">Email Address</label>
+                <input [(ngModel)]="recipient.email" placeholder="email@example.com" class="input-field py-1.5 text-xs">
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div *ngFor="let p of placeholders" class="flex flex-col gap-1">
+                  <label class="text-[10px] text-slate-500 font-bold uppercase truncate">{{p}}</label>
+                  <input [(ngModel)]="recipient.variables[p]" (ngModelChange)="updatePreview()" [placeholder]="p"
+                    class="input-field py-1.5 text-xs">
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-2 flex justify-between items-center">
+              <span class="text-[10px] uppercase tracking-wider font-bold" [ngClass]="{
+                      'text-slate-500': recipient.status === 'idle',
+                      'text-indigo-400 animate-pulse': recipient.status === 'sending',
+                      'text-emerald-400': recipient.status === 'success',
+                      'text-rose-400': recipient.status === 'failed'
+                    }">
+                {{ recipient.status }}
+              </span>
+              <button (click)="removeRecipient(i); $event.stopPropagation()" class="btn-remove">
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Template Section -->
+      <section class="glass p-5 flex flex-col min-h-0 flex-1">
+        <div class="flex justify-between items-center mb-4 flex-shrink-0">
+          <h2 class="text-sm font-semibold uppercase tracking-widest flex items-center gap-2">
+            <lucide-icon [name]="FileText" class="text-indigo-400 w-4 h-4"></lucide-icon>
+            Message Template
+          </h2>
+          <button (click)="showAIPanel = !showAIPanel" class="btn-ai" [class.btn-ai-active]="showAIPanel">
+            <lucide-icon [name]="Sparkles" class="w-3.5 h-3.5"></lucide-icon>
+            AI Generate
+          </button>
+        </div>
+
+        <!-- AI Generation Panel -->
+        <div *ngIf="showAIPanel" class="ai-panel mb-4 flex-shrink-0 animate-slide-down">
+          <div class="ai-panel-header">
+            <lucide-icon [name]="WandSparkles" class="w-4 h-4 text-purple-400"></lucide-icon>
+            <span class="text-xs font-semibold uppercase tracking-wider text-purple-300">AI Email Generator</span>
+          </div>
+
+          <textarea [(ngModel)]="aiPrompt" class="input-field text-sm ai-prompt-input"
+            placeholder="Describe the email you want... e.g., 'Write an outreach email for a luxury boutique hotel in Jaipur, focused on a 3-night stay collaboration with cinematic content deliverables'"
+            rows="3"></textarea>
+
+          <div class="flex items-center gap-3 mt-3">
+            <div class="ai-mode-selector">
+              <button (click)="aiMode = 'generate'" class="ai-mode-btn" [class.ai-mode-active]="aiMode === 'generate'">
+                <lucide-icon [name]="Sparkles" class="w-3 h-3"></lucide-icon>
+                New
+              </button>
+              <button (click)="aiMode = 'rewrite'" class="ai-mode-btn" [class.ai-mode-active]="aiMode === 'rewrite'">
+                <lucide-icon [name]="RefreshCw" class="w-3 h-3"></lucide-icon>
+                Rewrite
+              </button>
+              <button (click)="aiMode = 'improve'" class="ai-mode-btn" [class.ai-mode-active]="aiMode === 'improve'">
+                <lucide-icon [name]="WandSparkles" class="w-3 h-3"></lucide-icon>
+                Improve
+              </button>
+            </div>
+
+            <button (click)="generateWithAI()" [disabled]="isGenerating" class="btn-generate">
+              <lucide-icon [name]="isGenerating ? RefreshCw : Sparkles" class="w-3.5 h-3.5"
+                [class.spin-animation]="isGenerating"></lucide-icon>
+              {{ isGenerating ? 'Generating...' : 'Generate' }}
+            </button>
+          </div>
+
+          <!-- AI Result Preview -->
+          <div *ngIf="hasAIResult" class="ai-result mt-4 animate-slide-down">
+            <div class="ai-result-header">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">✨ Generated Result</span>
+              <div class="flex gap-2">
+                <button (click)="discardAIResult()" class="btn-icon-sm">Discard</button>
+                <button (click)="acceptAIResult()" class="btn-accept">Accept & Apply</button>
+              </div>
+            </div>
+            <div class="ai-result-content">
+              <div class="mb-3">
+                <span class="text-[10px] text-purple-400 uppercase font-bold block mb-1">Subject</span>
+                <p class="text-sm text-slate-200 font-medium">{{ generatedSubject }}</p>
+              </div>
+              <div>
+                <span class="text-[10px] text-purple-400 uppercase font-bold block mb-1">Body</span>
+                <p class="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{{ generatedBody }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+          <div class="flex-shrink-0">
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-[10px] text-slate-500 uppercase font-bold">Subject Line</label>
+              <button *ngIf="template.subject" (click)="clearSubject()" class="btn-icon-sm" title="Clear subject">
+                <lucide-icon [name]="RotateCcw" class="w-3 h-3"></lucide-icon>
+                <span>Clear</span>
+              </button>
+            </div>
+            <input [(ngModel)]="template.subject" (ngModelChange)="detectPlaceholders(); updatePreview()"
+              class="input-field text-sm font-medium">
+          </div>
+          <div class="flex-1 min-h-150 flex flex-col">
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-[10px] text-slate-500 uppercase font-bold">Email Body</label>
+              <button *ngIf="template.body" (click)="clearBody()" class="btn-icon-sm" title="Clear body">
+                <lucide-icon [name]="RotateCcw" class="w-3 h-3"></lucide-icon>
+                <span>Clear</span>
+              </button>
+            </div>
+            <textarea [(ngModel)]="template.body" (ngModelChange)="detectPlaceholders(); updatePreview()"
+              class="input-field flex-1 resize-none leading-relaxed text-sm"
+              [placeholder]="'Write your template here... use {{placeholder}}'"></textarea>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Right Column: Live Preview -->
+    <div class="flex-1 min-h-0 flex flex-col basis-0">
+      <section class="glass p-5 flex flex-col h-full border-indigo-500/20 min-h-0">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+          <h2 class="text-sm font-semibold uppercase tracking-widest flex items-center gap-2">
+            <lucide-icon [name]="CheckCircle" class="text-emerald-400 w-4 h-4"></lucide-icon>
+            Live Preview
+          </h2>
+          <span class="text-[10px] text-slate-400">Previewing: <strong>{{
+              selectedRecipient?.variables?.[placeholders[0]] || selectedRecipient?.email || 'N/A' }}</strong></span>
+        </div>
+
+        <div
+          class="bg-preview rounded-xl p-8 border border-white/5 shadow-inner flex-1 overflow-y-auto custom-scrollbar">
+          <div class="pb-6 border-b border-white/10 mb-6 flex-shrink-0">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[10px] text-indigo-400 uppercase font-bold">Subject</span>
+              <button *ngIf="previewSubject" (click)="copySubject()" class="btn-icon-copy" title="Copy subject">
+                <lucide-icon [name]="copiedSubject ? ClipboardCheck : Copy" class="w-3 h-3"></lucide-icon>
+                <span>{{ copiedSubject ? 'Copied!' : 'Copy' }}</span>
+              </button>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-100">{{ previewSubject }}</h3>
+          </div>
+          <div class="flex justify-between items-start mb-3 flex-shrink-0">
+            <span class="text-[10px] text-indigo-400 uppercase font-bold">Body</span>
+            <button *ngIf="previewBody" (click)="copyPreview()" class="btn-icon-copy" title="Copy body">
+              <lucide-icon [name]="copiedPreview ? ClipboardCheck : Copy" class="w-3 h-3"></lucide-icon>
+              <span>{{ copiedPreview ? 'Copied!' : 'Copy' }}</span>
+            </button>
+          </div>
+          <div class="text-slate-300 whitespace-pre-wrap leading-relaxed text-sm" [innerHTML]="previewBody">
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-indigo-500/5 rounded-lg border border-indigo-500/10 flex-shrink-0">
+          <p class="text-[11px] text-indigo-300/80 flex items-start gap-2">
+            <lucide-icon [name]="AlertCircle" class="w-4 h-4 flex-shrink-0"></lucide-icon>
+            Detected placeholders: <code
+              class="bg-indigo-500/10 px-1 rounded">{{ placeholders.join(', ') || 'None' }}</code>
+          </p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer
+    class="mt-4 pb-2 flex justify-center items-center text-slate-500 text-[10px] uppercase tracking-[0.2em] opacity-40 flex-shrink-0 animate-fade-in">
+    © 2026 Globe Plates • Outreach OS
+  </footer>
+</div>
