@@ -68,7 +68,8 @@ class AIService:
             raise ValueError("Gemini API key is required")
             
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        # Using gemini-1.5-flash instead of gemini-2.0-flash to avoid strict free tier limits/location blocks
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
         placeholder_list = ", ".join([f"{{{{{p}}}}}" for p in request.placeholders]) if request.placeholders else "none detected yet"
 
