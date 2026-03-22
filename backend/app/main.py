@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Ensure the parent directory is in the Python path so absolute imports work
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
