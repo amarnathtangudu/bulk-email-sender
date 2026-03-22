@@ -34,11 +34,17 @@ async def send_bulk_emails(request: BulkEmailRequest):
         print(f"SMTP Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to connect/login to SMTP: {str(e)}")
 
+import traceback
+
 @router.post("/generate-email")
 async def generate_email(request: AIGenerateRequest):
     try:
         return AIService.generate_email(request)
     except ValueError as e:
+        print(f"ValueError in generate_email: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
+        print(f"Exception in generate_email: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
