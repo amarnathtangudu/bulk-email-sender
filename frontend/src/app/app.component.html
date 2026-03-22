@@ -179,23 +179,40 @@
             </button>
           </div>
 
-          <!-- AI Result Preview -->
-          <div *ngIf="hasAIResult" class="ai-result mt-4 animate-slide-down">
-            <div class="ai-result-header">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">✨ Generated Result</span>
-              <div class="flex gap-2">
-                <button (click)="discardAIResult()" class="btn-icon-sm">Discard</button>
-                <button (click)="acceptAIResult()" class="btn-accept">Accept & Apply</button>
+          <!-- AI Result Preview Modal Overlay -->
+          <div *ngIf="hasAIResult" class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+            <div class="glass w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl animate-fade-in border border-purple-500/30 rounded-2xl overflow-hidden">
+              <div class="p-5 border-b border-white/10 flex justify-between items-center bg-slate-800/50 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                  <lucide-icon [name]="Sparkles" class="w-5 h-5 text-purple-400"></lucide-icon>
+                  <h3 class="text-sm font-bold uppercase tracking-wider text-purple-300">Generated Email Result</h3>
+                </div>
+                <button (click)="discardAIResult()" class="text-slate-400 hover:text-white transition-colors">
+                  <lucide-icon [name]="X" class="w-5 h-5"></lucide-icon>
+                </button>
               </div>
-            </div>
-            <div class="ai-result-content">
-              <div class="mb-3">
-                <span class="text-[10px] text-purple-400 uppercase font-bold block mb-1">Subject</span>
-                <p class="text-sm text-slate-200 font-medium">{{ generatedSubject }}</p>
+              
+              <div class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-900/50">
+                <div class="mb-6">
+                  <span class="text-[10px] text-purple-400 uppercase font-bold tracking-widest block mb-2">Subject</span>
+                  <div class="bg-black/30 p-4 rounded-xl border border-white/5 shadow-inner">
+                    <p class="text-base text-slate-100 font-medium">{{ generatedSubject }}</p>
+                  </div>
+                </div>
+                <div>
+                  <span class="text-[10px] text-purple-400 uppercase font-bold tracking-widest block mb-2">Body</span>
+                  <div class="bg-black/30 p-5 rounded-xl border border-white/5 shadow-inner">
+                    <p class="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{{ generatedBody }}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <span class="text-[10px] text-purple-400 uppercase font-bold block mb-1">Body</span>
-                <p class="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{{ generatedBody }}</p>
+              
+              <div class="p-5 border-t border-white/10 flex justify-end gap-3 bg-slate-800/80 flex-shrink-0">
+                <button (click)="discardAIResult()" class="btn-secondary px-6">Discard</button>
+                <button (click)="acceptAIResult()" class="btn-primary px-6 bg-purple-600 hover:bg-purple-500 border-purple-500 shadow-lg shadow-purple-500/20">
+                  <lucide-icon [name]="CheckCircle" class="w-4 h-4"></lucide-icon>
+                  Accept & Apply
+                </button>
               </div>
             </div>
           </div>
