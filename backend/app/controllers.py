@@ -1,10 +1,20 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, BackgroundTasks, WebSocket, WebSocketDisconnect
 from app.models import (
     Recipient, EmailTemplate, BulkEmailRequest, TemplateRequest, AIGenerateRequest
 )
 from app.services import EmailService, AIService
+from app.ws_manager import manager
 
 router = APIRouter()
+
+@router.websocket("/ws/progress/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await manager.connect(websocket, client_id)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(client_id)
 
 @router.post("/generate-template")
 async def generate_template(request: TemplateRequest):
@@ -26,13 +36,16 @@ async def preview_email(template: EmailTemplate, recipient: Recipient):
         raise HTTPException(status_code=400, detail=f"Template rendering error: {str(e)}")
 
 @router.post("/send-bulk")
-async def send_bulk_emails(request: BulkEmailRequest):
+async def send_bulk_emails(request: BulkEmailRequest, background_tasks: BackgroundTasks, client_id: str = ""):
+    if not client_id:
+        raise HTTPException(status_code=400, detail="client_id parameter is required")
+        
     try:
-        results = EmailService.send_bulk_emails(request)
-        return {"results": results}
+        background_tasks.add_task(EmailService.send_bulk_emails_bg, request, client_id)
+        return {"status": "started", "message": "Bulk sending started in the background."}
     except Exception as e:
-        print(f"SMTP Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to connect/login to SMTP: {str(e)}")
+        print(f"Error starting bulk send: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start task: {str(e)}")
 
 import traceback
 

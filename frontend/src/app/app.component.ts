@@ -104,12 +104,43 @@ Contact: +91 8895035680`
   showSettings = false;
 
   notifications: { type: 'success' | 'error', message: string, id: number }[] = [];
+  
+  clientId = Math.random().toString(36).substring(2, 15);
+  socket: WebSocket | null = null;
 
   constructor(private apiService: ApiService, private ngZone: NgZone) { }
 
   ngOnInit() {
     this.detectPlaceholders();
     this.updatePreview();
+    this.connectWebSocket();
+  }
+
+  connectWebSocket() {
+    this.socket = new WebSocket(this.apiService.getWebSocketUrl(this.clientId));
+    this.socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      this.ngZone.run(() => {
+        if (data.type === 'progress') {
+          const r = this.recipients.find(x => x.id === data.id);
+          if (r) r.status = data.status;
+        } else if (data.type === 'complete') {
+          this.isSending = false;
+          this.addNotification('success', 'Bulk email campaign completed successfully!');
+        } else if (data.type === 'error') {
+          this.isSending = false;
+          this.addNotification('error', `Background Process Error: ${data.message}`);
+          this.recipients.forEach(r => {
+            if (r.status === 'sending') r.status = 'failed';
+          });
+        }
+      });
+    };
+    this.socket.onclose = () => {
+      if (this.isSending) {
+        this.addNotification('error', 'Live progress connection lost.');
+      }
+    };
   }
 
   detectPlaceholders() {
@@ -292,7 +323,7 @@ Contact: +91 8895035680`
 
   async sendBulk() {
     if (!this.smtpUser || !this.smtpPassword) {
-      this.addNotification('error', 'Please configure Gmail SMTP settings first.');
+      this.addNotification('error', 'SMTP settings are missing.');
       this.showSettings = true;
       return;
     }
@@ -302,14 +333,14 @@ Contact: +91 8895035680`
       return;
     }
 
-    if (!confirm(`Are you sure you want to send emails to ${this.recipients.length} recipients?`)) {
+    if (!confirm(`Are you sure you want to send emails to ${this.recipients.length} recipients?\nThis will run in the background with anti-spam throttling.`)) {
       return;
     }
 
     this.isSending = true;
 
-    // Set all to sending
-    this.recipients.forEach(r => r.status = 'sending');
+    // Set all to waiting visual
+    this.recipients.forEach(r => r.status = 'idle');
 
     try {
       const payload = {
@@ -323,35 +354,13 @@ Contact: +91 8895035680`
         }))
       };
 
-      const response: any = await this.apiService.sendBulkEmails(payload).toPromise();
-
-      let successCount = 0;
-      let failedCount = 0;
-
-      if (response && response.results) {
-        response.results.forEach((res: any) => {
-          const recipient = this.recipients.find(r => r.id === res.id);
-          if (recipient) {
-            recipient.status = res.status;
-            if (res.status === 'success') successCount++;
-            else failedCount++;
-          }
-        });
-      }
-
-      if (failedCount === 0) {
-        this.addNotification('success', `Successfully sent ${successCount} emails!`);
-      } else {
-        this.addNotification('error', `Sent ${successCount} successfully, but ${failedCount} failed.`);
-      }
-
+      const response: any = await this.apiService.sendBulkEmails(payload, this.clientId).toPromise();
+      this.addNotification('success', response.message);
+      // isSending stays true until the WebSocket 'complete' event triggers!
     } catch (e: any) {
       console.error(e);
-      this.recipients.forEach(r => {
-        if (r.status === 'sending') r.status = 'failed';
-      });
-      this.addNotification('error', e.error?.detail || 'Failed to send bulk emails. Check SMTP settings.');
-    } finally {
+      this.recipients.forEach(r => r.status = 'failed');
+      this.addNotification('error', e.error?.detail || 'Failed to connect to bulk sending background service.');
       this.isSending = false;
     }
   }

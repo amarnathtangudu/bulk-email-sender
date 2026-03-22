@@ -21,8 +21,12 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/generate-template`, { placeholders }, { responseType: 'blob' });
   }
 
-  sendBulkEmails(payload: any): Observable<any> {
-    return this.http.post(`${this.baseUrl}/send-bulk`, payload);
+  sendBulkEmails(payload: any, clientId: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/send-bulk?client_id=${clientId}`, payload);
+  }
+
+  getWebSocketUrl(clientId: string): string {
+    return this.baseUrl.replace('http://', 'ws://') + `/ws/progress/${clientId}`;
   }
 
   generateEmail(payload: any): Observable<any> {

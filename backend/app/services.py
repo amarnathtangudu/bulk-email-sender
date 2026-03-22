@@ -33,13 +33,22 @@ class EmailService:
         return content.encode("utf-8")
 
     @classmethod
-    def send_bulk_emails(cls, request: BulkEmailRequest) -> List[Dict]:
-        results = []
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(request.smtp_user, request.smtp_password)
+    async def send_bulk_emails_bg(cls, request: BulkEmailRequest, client_id: str):
+        import asyncio
+        from app.ws_manager import manager
         
-        for recipient in request.recipients:
+        try:
+            server = smtplib.SMTP('smtp.gmail.com', 587)
+            await asyncio.to_thread(server.starttls)
+            await asyncio.to_thread(server.login, request.smtp_user, request.smtp_password)
+        except Exception as e:
+            if manager:
+                await manager.send_personal_message({"type": "error", "message": f"SMTP Setup failed: {str(e)}"}, client_id)
+            return
+
+        total = len(request.recipients)
+        
+        for idx, recipient in enumerate(request.recipients):
             try:
                 vars = {"email": recipient.email, **recipient.variables}
                 subject = cls.render_template(request.template.subject, vars)
@@ -51,14 +60,35 @@ class EmailService:
                 msg['Subject'] = subject
                 msg.attach(MIMEText(body, 'plain'))
                 
-                server.send_message(msg)
+                await asyncio.to_thread(server.send_message, msg)
                 
-                results.append({"id": recipient.id, "status": "success"})
+                if manager:
+                    await manager.send_personal_message({
+                        "type": "progress",
+                        "id": recipient.id,
+                        "status": "success",
+                        "sent_count": idx + 1,
+                        "total": total
+                    }, client_id)
+                    
             except Exception as e:
-                results.append({"id": recipient.id, "status": "failed", "error": str(e)})
-        
-        server.quit()
-        return results
+                if manager:
+                    await manager.send_personal_message({
+                        "type": "progress",
+                        "id": recipient.id,
+                        "status": "failed",
+                        "error": str(e),
+                        "sent_count": idx + 1,
+                        "total": total
+                    }, client_id)
+                    
+            # Rate throttling delay between messages to prevent anti-spam trigger
+            if idx < total - 1:
+                await asyncio.sleep(2.0)
+                
+        await asyncio.to_thread(server.quit)
+        if manager:
+            await manager.send_personal_message({"type": "complete"}, client_id)
 
 class AIService:
     @staticmethod
