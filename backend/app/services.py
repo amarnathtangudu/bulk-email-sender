@@ -63,6 +63,13 @@ class EmailService:
 class AIService:
     @staticmethod
     def generate_email(request: AIGenerateRequest) -> Dict[str, str]:
+        # --- HARDCODED MOCK RESPONSE FOR UI TESTING ---
+        # (Remove this return statement to re-enable actual Gemini AI generation)
+        return {
+            "subject": "Collaboration Inquiry | Globe Plates x {{hotel_name}}",
+            "body": "Dear {{hotel_name}} Team,\n\nThis is a hardcoded mock response to help you test the UI without hitting the Gemini API and expending your quota limits!\n\nAs you can see, the popup modal should display this text nicely.\n\nWarm regards,\nGlobe Plates"
+        }
+        
         api_key = settings.get_gemini_key()
         if not api_key:
             raise ValueError("Gemini API key is required")
